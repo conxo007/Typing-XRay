@@ -1,3 +1,4 @@
+
 name: Build Typing X-Ray for Windows
 
 on:
@@ -5,9 +6,16 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: windows-latest
+
+    defaults:
+      run:
+        working-directory: diag
 
     steps:
       - name: Checkout project
@@ -24,18 +32,29 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      - name: Compile source
+        run: python -m compileall -q .
+
       - name: Run tests
-        run: |
-          python -m compileall -q .
-          python -m unittest discover -s tests -v
+        run: python -m unittest discover -s tests -v
+
+      - name: Run diagnostics
+        run: python diagnose.py
 
       - name: Build Windows executable
-        run: |
-          pyinstaller --noconfirm --clean --windowed --onedir --name TypingXRay main.py
+        shell: cmd
+        run: >
+          python -m PyInstaller --noconfirm --clean
+          --windowed --onedir
+          --name TypingXRay
+          --add-data "data;data"
+          --add-data "assets;assets"
+          --collect-all pygame
+          main.py
 
       - name: Upload Windows application
         uses: actions/upload-artifact@v4
         with:
           name: TypingXRay-Windows-x64
-          path: dist/TypingXRay/
+          path: diag/dist/TypingXRay/
           if-no-files-found: error
